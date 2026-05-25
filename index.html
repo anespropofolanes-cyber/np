@@ -597,6 +597,50 @@
 </head>
 <body style="background:#f2f5f8!important;color:#1e2a35!important">
 
+<div id="pw-gate" style="position:fixed;inset:0;z-index:9999;background:#445668;display:flex;align-items:center;justify-content:center;font-family:'Noto Sans TC',sans-serif;">
+  <div style="background:#fff;padding:36px 40px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.25);min-width:300px;text-align:center;">
+    <div style="font-size:38px;color:#5b6e82;margin-bottom:8px;">&#x2695;</div>
+    <div style="font-size:18px;font-weight:600;color:#1e2a35;margin-bottom:4px;">麻醉專科護理師題庫</div>
+    <div style="font-size:12px;color:#7a8fa0;letter-spacing:1px;margin-bottom:24px;">請輸入密碼</div>
+    <input id="pw-input" type="password" inputmode="numeric" autocomplete="off"
+      style="width:100%;padding:10px 12px;font-size:16px;text-align:center;letter-spacing:6px;border:1px solid #cdd6e0;border-radius:6px;background:#e8edf2;color:#1e2a35;margin-bottom:12px;">
+    <div id="pw-error" style="font-size:12px;color:#c0392b;min-height:16px;margin-bottom:8px;">&nbsp;</div>
+    <button id="pw-submit" style="width:100%;padding:10px;font-size:14px;background:#445668;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;">進入</button>
+  </div>
+</div>
+<script>
+(function(){
+  var PW = '4108';
+  var gate = document.getElementById('pw-gate');
+  var input = document.getElementById('pw-input');
+  var err = document.getElementById('pw-error');
+  var btn = document.getElementById('pw-submit');
+  document.body.style.overflow = 'hidden';
+  try {
+    if (sessionStorage.getItem('quiz_unlocked') === '1') {
+      gate.remove(); document.body.style.overflow = '';
+      return;
+    }
+  } catch(e){}
+  setTimeout(function(){ input.focus(); }, 50);
+  function unlock(){
+    if (input.value === PW) {
+      try { sessionStorage.setItem('quiz_unlocked','1'); } catch(e){}
+      gate.remove();
+      document.body.style.overflow = '';
+    } else {
+      err.textContent = '密碼錯誤';
+      input.value = '';
+      input.focus();
+    }
+  }
+  btn.addEventListener('click', unlock);
+  input.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); unlock(); }
+  });
+})();
+</script>
+
 <div class="header">
   <div class="header-logo">&#x2695;</div>
   <div>
