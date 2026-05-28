@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>麻醉專科護理師題庫練習系統</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&family=Noto+Sans+TC:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&family=Noto+Sans+TC:wght@300;400;500&family=DM+Mono:wght@400;500&family=ZCOOL+KuaiLe&display=swap');
+  @font-face {
+    font-family: 'Khalil7';
+    src: url('fonts/Khalil7.otf') format('opentype');
+    font-display: swap;
+  }
 
   :root {
     --bg: #f2f5f8;
@@ -212,6 +217,38 @@
   }
   .wrong-entry-info { font-size: 13px; }
   .wrong-entry-count { color: var(--warn); font-weight: 600; font-size: 15px; }
+
+  /* ── RESUME BANNER ── */
+  .resume-banner {
+    margin-top: 12px;
+    padding: 14px 18px;
+    background: #fffaea;
+    border: 1px solid #ecd9a4;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .resume-info { font-size: 13px; color: var(--text); }
+  .resume-info strong { color: #8a6a1a; font-weight: 600; }
+  .resume-actions { display: flex; gap: 8px; }
+  .resume-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+    border: 1px solid #b58a30;
+    background: #c9a040;
+    color: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .resume-btn.secondary {
+    background: transparent;
+    color: var(--text2);
+    border-color: var(--border);
+  }
 
   /* ── QUIZ SCREEN ── */
   .quiz-progress-wrap { margin-bottom: 20px; }
@@ -661,6 +698,14 @@
     <div class="home-hero">
       <h1>麻醉科專科護理師<br>歷屆考題練習</h1>
       <p>選擇年份、科目，依類別與難度篩選後開始練習</p>
+    </div>
+
+    <div class="resume-banner" id="resume-banner" style="display:none">
+      <div class="resume-info" id="resume-text">上次有未完成的練習</div>
+      <div class="resume-actions">
+        <button class="resume-btn" onclick="resumeProgress()">繼續上次</button>
+        <button class="resume-btn secondary" onclick="discardProgress()">捨棄</button>
+      </div>
     </div>
 
         <!-- 年份 -->
@@ -1158,12 +1203,14 @@ function selectAnswer(key) {
     ].style.borderColor = 'var(--accent)';
     renderExamDots();
   }
+  saveProgress();
 }
 
 function nextQ() {
   if (state.current < state.questions.length - 1) {
     state.current++;
     renderQuestion();
+    saveProgress();
   } else if (state.mode === 'practice') {
     showResult();
   }
@@ -1172,6 +1219,7 @@ function prevQ() {
   if (state.current > 0) {
     state.current--;
     renderQuestion();
+    saveProgress();
   }
 }
 function finishExam() {
@@ -1211,6 +1259,7 @@ function renderExamDots() {
 //  RESULT
 // ══════════════════════════════════════════════
 function showResult() {
+  clearProgress();
   const total = state.questions.length;
   let correctCount = 0, wrongCount = 0, skipCount = 0;
 
@@ -1334,7 +1383,82 @@ function showScreen(name) {
 
 function goHome() {
   updateWrongEntry();
+  updateResumeBanner();
   showScreen('home');
+}
+
+// ══════════════════════════════════════════════
+//  PROGRESS / RESUME
+// ══════════════════════════════════════════════
+const PROGRESS_KEY = 'anes_quiz_progress';
+function saveProgress() {
+  if (!state.questions || !state.questions.length) return;
+  if (!state.year || !state.subject) return;
+  const p = {
+    role: state.role || 'nurse',
+    year: state.year,
+    subject: state.subject,
+    mode: state.mode || 'practice',
+    current: state.current,
+    answers: state.answers || {},
+    filterCat: state.filterCat || [],
+    filterDiff: state.filterDiff || [],
+    total: state.questions.length,
+    ts: Date.now()
+  };
+  try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch(e){}
+}
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)); } catch(e){ return null; }
+}
+function clearProgress() {
+  try { localStorage.removeItem(PROGRESS_KEY); } catch(e){}
+}
+function discardProgress() {
+  if (!confirm('確定捨棄上次未完成的進度嗎？')) return;
+  clearProgress();
+  updateResumeBanner();
+}
+function resumeProgress() {
+  const p = loadProgress();
+  if (!p) { updateResumeBanner(); return; }
+  const data = DATA_REGISTRY[p.role]?.[p.year]?.[p.subject];
+  if (!data) { clearProgress(); updateResumeBanner(); alert('找不到對應題庫，進度已清除'); return; }
+  state.role = p.role;
+  state.year = p.year;
+  state.subject = p.subject;
+  state.mode = p.mode;
+  state.filterCat = p.filterCat || [];
+  state.filterDiff = p.filterDiff || [];
+  let qs = data.questions;
+  if (state.filterCat.length) qs = qs.filter(q => state.filterCat.includes(q.category));
+  if (state.filterDiff.length) qs = qs.filter(q => state.filterDiff.includes(q.difficulty));
+  if (!qs.length) { clearProgress(); updateResumeBanner(); alert('進度的篩選條件已無對應題目'); return; }
+  state.questions = qs;
+  state.current = Math.min(p.current || 0, qs.length - 1);
+  state.answers = p.answers || {};
+  state.sessionWrong = [];
+  showScreen('quiz');
+  renderQuestion();
+  if (state.mode === 'exam') {
+    document.getElementById('exam-nav-wrap').style.display = 'block';
+    renderExamDots();
+  } else {
+    document.getElementById('exam-nav-wrap').style.display = 'none';
+  }
+}
+function updateResumeBanner() {
+  const banner = document.getElementById('resume-banner');
+  if (!banner) return;
+  const p = loadProgress();
+  if (!p || !p.year || !p.subject) { banner.style.display = 'none'; return; }
+  const subjectName = p.subject === 'advanced' ? '進階專科護理' : '專科護理通論';
+  const modeName = p.mode === 'exam' ? '模擬考' : '練習';
+  const d = new Date(p.ts || Date.now());
+  const ds = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('resume-text').innerHTML =
+    `上次未完成：<strong>${p.year} 年 ${subjectName}</strong>（${modeName}模式，第 ${(p.current||0)+1} 題 / 共 ${p.total} 題，${ds}）`;
+  banner.style.display = 'flex';
 }
 
 function updateWrongEntry() {
@@ -1399,6 +1523,16 @@ try {
   }
 } catch(e) {}
 updateWrongEntry();
+updateResumeBanner();
 </script>
+
+<div id="app-logo" aria-hidden="true" style="position:fixed;right:14px;bottom:12px;width:84px;height:34px;opacity:0.42;pointer-events:none;z-index:100;">
+  <svg viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#5a6878" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="width:100%;height:100%;display:block;">
+    <path d="M 110 45 C 110 12, 60 12, 38 45 C 16 78, 110 78, 110 45 C 110 12, 204 78, 182 45 C 160 12, 110 78, 110 45 Z"/>
+    <rect x="91" y="26" width="38" height="38" fill="#f2f5f8" stroke="none"/>
+    <text x="110" y="60" text-anchor="middle" font-family="'ZCOOL KuaiLe', 'Noto Serif TC', sans-serif" font-size="34" fill="#5a6878" stroke="none">賦</text>
+  </svg>
+</div>
+
 </body>
 </html>
